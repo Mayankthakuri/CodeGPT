@@ -1,5 +1,8 @@
 {
   "name": "chatgpt-clone-api",
   "private": true,
-  "dependencies": {}
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0",
+    "jsonwebtoken": "^9.0.0"
+  }
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import supabase from '../lib/supabase'
 import API_URL from '../config'
 
@@ -29,19 +29,19 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        await loadUserProfile(session.user)
-      } else {
-        setUser(null)
-        setLoading(false)
-      }
-    })
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         loadUserProfile(session.user)
       } else {
+        setLoading(false)
+      }
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await loadUserProfile(session.user)
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null)
         setLoading(false)
       }
     })
@@ -51,48 +51,29 @@ export function AuthProvider({ children }) {
 
   const loadUserProfile = async (authUser) => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .single()
-
+      const { data } = await supabase.from('users').select('*').eq('id', authUser.id).single()
       if (data) {
         setUser({
-          id: data.id,
-          email: data.email,
-          name: data.name,
-          avatar: data.avatar,
-          provider: data.provider,
-          stats: data.stats || {},
-          achievements: data.achievements || [],
-          progress: data.progress || [],
-          created_at: data.created_at
+          id: data.id, email: data.email, name: data.name, avatar: data.avatar,
+          provider: data.provider, stats: data.stats || {}, achievements: data.achievements || [],
+          progress: data.progress || [], created_at: data.created_at
         })
       } else {
         setUser({
-          id: authUser.id,
-          email: authUser.email,
+          id: authUser.id, email: authUser.email,
           name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0],
           avatar: authUser.user_metadata?.avatar_url || '',
           provider: authUser.app_metadata?.provider || 'email',
-          stats: {},
-          achievements: [],
-          progress: [],
-          created_at: authUser.created_at
+          stats: {}, achievements: [], progress: []
         })
       }
     } catch (error) {
-      console.error('Error loading profile:', error)
       setUser({
-        id: authUser.id,
-        email: authUser.email,
+        id: authUser.id, email: authUser.email,
         name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0],
         avatar: authUser.user_metadata?.avatar_url || '',
         provider: authUser.app_metadata?.provider || 'email',
-        stats: {},
-        achievements: [],
-        progress: []
+        stats: {}, achievements: [], progress: []
       })
     } finally {
       setLoading(false)
@@ -108,36 +89,68 @@ export function AuthProvider({ children }) {
 
   const register = async (email, password, name) => {
     const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+      email, password,
       options: { data: { full_name: name } }
     })
     if (error) throw error
-
     if (data.user) {
       await supabase.from('users').upsert({
-        id: data.user.id,
-        email: data.user.email,
-        name: name,
-        provider: 'local',
-        stats: {},
-        achievements: [],
-        progress: []
+        id: data.user.id, email: data.user.email, name, provider: 'local',
+        stats: {}, achievements: [], progress: []
       })
       await loadUserProfile(data.user)
     }
     return data.user
   }
 
-  const loginWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin
+  const loginWithGoogle = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      const clientId = '145030654305-eku59int7976l48sn10p63u8jg2gphhr.apps.googleusercontent.com'
+
+      if (!window.google) {
+        reject(new Error('Google SDK not loaded. Please refresh the page.'))
+        return
       }
+
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response) => {
+          try {
+            const res = await fetch(`${API_URL}/api/auth/google`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ credential: response.credential })
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error)
+
+            // Use the magic link token to create a Supabase session
+            const { data: sessionData, error: sessionErr } = await supabase.auth.verifyOtp({
+              email: data.email,
+              token: data.token,
+              type: 'magiclink'
+            })
+
+            if (sessionErr) {
+              // Fallback: set user directly without Supabase session
+              setUser(data.user)
+              setLoading(false)
+              resolve(data.user)
+              return
+            }
+
+            await loadUserProfile(sessionData.user)
+            resolve(sessionData.user)
+          } catch (err) {
+            reject(err)
+          }
+        },
+        auto_select: false
+      })
+
+      window.google.accounts.id.prompt()
     })
-    if (error) throw error
-  }
+  }, [])
 
   const logout = async () => {
     await supabase.auth.signOut()
@@ -167,7 +180,6 @@ export function AuthProvider({ children }) {
     const achievements = checkAchievements(progress, stats, user.achievements || [])
 
     await supabase.from('users').update({ progress, stats, achievements }).eq('id', user.id)
-
     setUser(prev => ({ ...prev, progress, stats, achievements }))
   }
 
