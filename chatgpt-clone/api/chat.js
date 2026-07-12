@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
       'Accept': 'text/event-stream',
-      'HTTP-Referer': 'https://frontend-alpha-two-17.vercel.app',
+      'HTTP-Referer': 'https://codegpt-lyart.vercel.app',
       'X-Title': 'CodeGPT'
     }
   };
