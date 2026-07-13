@@ -1,94 +1,181 @@
-# ChatGPT Clone
+# CodeGPT
 
-A ChatGPT-like interface powered by DeepSeek API.
+A ChatGPT-like learning platform with AI chat, Google Colab-style Python IDE, structured courses, quizzes, and achievement certificates.
+
+**Live:** https://code-gpt-one.vercel.app
 
 ## Features
 
-- Chat interface with streaming responses
-- Sidebar with conversation history (localStorage)
-- Markdown rendering in AI responses
-- Code syntax highlighting with copy button
+### AI Chat
+- DeepSeek AI powered via OpenRouter
+- Streaming responses with real-time token delivery
+- Conversation history with sidebar navigation
+- Markdown rendering with code syntax highlighting
+
+### Python Notebook
+- Google Colab-style IDE with cell-based editing
+- Pyodide (Python 3.12) running in the browser
+- Code and text cells with run buttons
+- AI code generation assistant
+- Run all cells or individual cells
+
+### Learning Platform
+- Structured courses with modules and lessons
+- Quizzes with scoring and pass/fail
+- Progress tracking across all courses
+- Learning dashboard with stats
+
+### User System
+- Email registration and login
+- Google OAuth sign-in
+- User profiles with avatar and stats
+- Persistent progress synced to Supabase
+
+### Achievements
+- Kaggle-style badge system (Bronze/Silver/Gold/Platinum/Diamond)
+- 10 achievement types across progress, quizzes, and streaks
+- Certificate modal with badge details
+- Email certificates sent automatically on achievement unlock
+
+### UI/UX
 - Dark/Light mode toggle
 - Responsive design (mobile + desktop)
+- Google Colab-inspired IDE interface
+- Clean, modern design throughout
 
 ## Tech Stack
 
-- **Frontend:** React + Vite
-- **Backend:** Node.js + Express
-- **API:** DeepSeek Chat API
-
-## Setup
-
-### 1. Backend
-
-```bash
-cd backend
-cp .env.example .env
-```
-
-Edit `.env` and add your DeepSeek API key:
-```
-DEEPSEEK_API_KEY=your_api_key_here
-```
-
-Get your API key from: https://platform.deepseek.com/
-
-```bash
-npm install
-npm run dev
-```
-
-Server runs on http://localhost:5000
-
-### 2. Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend runs on http://localhost:3000
-
-### 3. Open Browser
-
-Go to http://localhost:3000 and start chatting!
+| Layer | Technology |
+|-------|------------|
+| Frontend | React + Vite |
+| Styling | Custom CSS |
+| AI | DeepSeek via OpenRouter |
+| Auth | Supabase Auth + Google GIS |
+| Database | Supabase (PostgreSQL) |
+| Email | Resend API |
+| Python | Pyodide (in-browser) |
+| Deployment | Vercel |
 
 ## Project Structure
 
 ```
-chatgpt-clone/
-├── backend/
-│   ├── server.js          # Express server with DeepSeek API proxy
-│   ├── package.json
-│   └── .env.example
+CodeGPT/
+├── api/
+│   ├── chat.js                    # AI chat proxy (OpenRouter streaming)
+│   ├── auth/
+│   │   ├── action.js              # Email register/login
+│   │   └── google.js              # Google OAuth handler
+│   └── achievements/
+│       └── send-email.js          # Certificate email sender
 ├── frontend/
+│   ├── public/
+│   │   └── falcon.svg             # App logo
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Chat.jsx       # Main chat interface
-│   │   │   ├── Sidebar.jsx    # Conversation history
-│   │   │   ├── Message.jsx    # Message with markdown
-│   │   │   └── Header.jsx     # Top bar with theme toggle
-│   │   ├── App.jsx
-│   │   ├── App.css
-│   │   └── main.jsx
-│   ├── package.json
-│   └── vite.config.js
-└── README.md
+│   │   │   ├── Chat.jsx           # AI chat interface
+│   │   │   ├── PythonIDE.jsx      # Colab-style notebook
+│   │   │   ├── Profile.jsx        # User profile + achievements
+│   │   │   ├── Dashboard.jsx      # Learning dashboard
+│   │   │   ├── CourseView.jsx     # Course viewer
+│   │   │   ├── LessonView.jsx     # Lesson content
+│   │   │   ├── QuizView.jsx       # Quiz with scoring
+│   │   │   ├── AuthPage.jsx       # Login/Register
+│   │   │   ├── Header.jsx         # Top navigation
+│   │   │   ├── Sidebar.jsx        # Dual-mode sidebar
+│   │   │   └── Message.jsx        # Chat message renderer
+│   │   ├── contexts/
+│   │   │   └── AuthContext.jsx    # Auth + progress state
+│   │   ├── data/
+│   │   │   └── courses.js         # Course content
+│   │   ├── lib/
+│   │   │   └── supabase.js        # Supabase client
+│   │   ├── App.jsx                # Main app with routing
+│   │   ├── App.css                # All styles
+│   │   └── config.js              # API URL config
+│   └── package.json
+├── package.json                   # Root deps (Supabase, Resend)
+└── vercel.json                    # Vercel deployment config
 ```
 
-## How It Works
+## Setup
 
-1. User types a message and presses Enter
-2. Frontend sends message to backend `/api/chat`
-3. Backend forwards to DeepSeek API with streaming
-4. Response streams back via Server-Sent Events (SSE)
-5. UI updates in real-time as tokens arrive
-6. Conversations saved to localStorage
+### Prerequisites
 
-## Environment Variables
+- Node.js 18+
+- Supabase project
+- OpenRouter API key
+- Resend API key (for certificates)
 
-| Variable | Description |
-|----------|-------------|
-| `DEEPSEEK_API_KEY` | Your DeepSeek API key |
-| `PORT` | Backend port (default: 5000) |
+### 1. Clone & Install
+
+```bash
+git clone https://github.com/Mayankthakuri/CodeGPT.git
+cd CodeGPT
+npm install
+cd frontend && npm install && cd ..
+```
+
+### 2. Environment Variables
+
+Set these in Vercel dashboard or `.env.local`:
+
+```bash
+# Supabase
+SUPABASE_URL=https://tyvpfmestblahyjkruxg.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_KEY=your_service_key
+
+# AI
+OPENROUTER_API_KEY=your_openrouter_key
+
+# Email
+RESEND_API_KEY=your_resend_key
+```
+
+### 3. Supabase Setup
+
+Create a `users` table:
+
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT,
+  avatar TEXT,
+  google_id TEXT,
+  provider TEXT DEFAULT 'email',
+  stats JSONB DEFAULT '{}',
+  achievements JSONB DEFAULT '[]',
+  progress JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 4. Deploy
+
+```bash
+vercel --prod
+```
+
+Or push to GitHub and connect to Vercel for auto-deploy.
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/chat` | POST | Stream AI chat responses |
+| `/api/auth/action` | POST | Login/register (email) |
+| `/api/auth/google` | POST | Google OAuth sign-in |
+| `/api/achievements/send-email` | POST | Send certificate email |
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Enter` | Run current cell (IDE) |
+| `Shift+Ctrl+Enter` | Run all cells (IDE) |
+| `Enter` | Send message (Chat) |
+
+## License
+
+MIT
